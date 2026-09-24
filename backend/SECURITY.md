@@ -140,7 +140,8 @@ curl "https://your-domain/api/init-db?init_key=correct-key"
 
 1. **使用独立脚本**（最安全）：
    ```bash
-   python init_railway_db.py
+   cd backend
+   python seed_db.py --reset
    ```
 
 2. **使用受保护的API接口**：

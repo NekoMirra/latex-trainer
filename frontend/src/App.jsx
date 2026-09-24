@@ -11,7 +11,7 @@ import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import LessonPage from './pages/LessonPage'
 import LearningPage from './pages/LearningPage'
-// 移除练习中心相关页面 - 精简为核心学习路径
+import PracticeCenterPage from './pages/PracticeCenterPage'
 import ReviewPage from './pages/ReviewPage'
 import OfflinePracticePage from './pages/OfflinePracticePage'
 import OAuthCallbackPage from './pages/OAuthCallbackPage'
@@ -82,7 +82,7 @@ function App() {
           {/* 将学习中心重定向到仪表盘，避免功能重复 */}
           <Route path="learning" element={<Navigate to="/app/dashboard" replace />} />
           <Route path="lesson/:lessonId" element={<LessonPage />} />
-          {/* 移除练习中心相关路由 - 精简为核心学习路径 */}
+          <Route path="practice" element={<PracticeCenterPage />} />
           <Route path="review" element={<ReviewPage />} />
 
         </Route>

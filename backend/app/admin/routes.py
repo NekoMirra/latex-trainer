@@ -401,39 +401,12 @@ def update_lessons():
     try:
         db = get_db()
 
-        # 导入最新的课程数据
-        import sys
-        import os
+        # 从题库单一源头加载课程数据
+        from app.services.bank import load_bank, lessons_zh, lessons_en
 
-        # 添加backend目录到Python路径
-        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        if backend_dir not in sys.path:
-            sys.path.insert(0, backend_dir)
-
-        # 导入课程数据
-        from comprehensive_lessons import create_comprehensive_lessons
-        import json
-
-        # 获取课程数据
-        lessons = create_comprehensive_lessons()
-
-        # 加载英文翻译
-        try:
-            with open(os.path.join(backend_dir, 'translations', 'lessons_en_US.json'), 'r', encoding='utf-8') as f:
-                translation_data = json.load(f)
-                raw_lessons_en = translation_data.get('lessons', [])
-
-                # 转换英文翻译数据格式，按sequence索引
-                lessons_en_US = []
-                for i, lesson_data in enumerate(raw_lessons_en):
-                    if 'translations' in lesson_data and 'en-US' in lesson_data['translations']:
-                        en_lesson = lesson_data['translations']['en-US']
-                        en_lesson['sequence'] = i + 1  # 按顺序分配sequence
-                        lessons_en_US.append(en_lesson)
-
-        except Exception as e:
-            lessons_en_US = []
-            print(f"Warning: Failed to load English translations: {e}")
+        bank = load_bank()
+        lessons = lessons_zh(bank)
+        lessons_en_US = lessons_en(bank)
 
         # 执行增量更新
         update_result = perform_incremental_update(db, lessons, lessons_en_US)
@@ -641,14 +614,9 @@ def update_lessons_status():
 
         # 获取源课程数据并检查是否需要更新
         try:
-            import sys
-            import os
-            backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            if backend_dir not in sys.path:
-                sys.path.insert(0, backend_dir)
+            from app.services.bank import load_bank, lessons_zh
 
-            from comprehensive_lessons import create_comprehensive_lessons
-            lessons = create_comprehensive_lessons()
+            lessons = lessons_zh(load_bank())
             source_lesson_count = len(lessons)
 
             # 检查是否有课程内容变化

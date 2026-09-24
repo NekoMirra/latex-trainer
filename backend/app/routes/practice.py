@@ -10,6 +10,7 @@ import re
 
 from app.models.lesson import Lesson
 from app.models.user import User
+from app.services.localization import localized_card, localized_title
 
 practice_bp = Blueprint('practice', __name__)
 
@@ -204,7 +205,7 @@ def get_practice_list():
         # 获取查询参数
         course_filter = request.args.get('course')
         difficulty_filter = request.args.get('difficulty')
-        topic_filter = request.args.get('topic')
+        language = request.args.get('language', 'zh-CN')
 
         # 获取所有课程中的练习题
         lessons = list(db.lessons.find({}).sort('sequence', 1))
@@ -213,6 +214,7 @@ def get_practice_list():
         for lesson in lessons:
             for card_index, card in enumerate(lesson['cards']):
                 if card['type'] == 'practice':
+                    localized = localized_card(lesson, card_index, language)
                     # 获取用户在此练习题的记录
                     user_record = db.practice_records.find_one({
                         'user_id': ObjectId(user_id),
@@ -223,12 +225,12 @@ def get_practice_list():
                     practice_item = {
                         'id': f"{lesson['_id']}_{card_index}",
                         'lesson_id': str(lesson['_id']),
-                        'lesson_title': lesson['title'],
+                        'lesson_title': localized_title(lesson, language),
                         'card_index': card_index,
-                        'question': card['question'],
-                        'target_formula': card['target_formula'],
-                        'difficulty': card.get('difficulty', 'medium'),
-                        'hints': card.get('hints', []),
+                        'question': localized.get('question', ''),
+                        'target_formula': localized.get('target_formula', ''),
+                        'difficulty': localized.get('difficulty', 'medium'),
+                        'hints': localized.get('hints', []),
                         'completed': user_record['is_correct'] if user_record else False,
                         'attempts': len(list(db.practice_records.find({
                             'user_id': ObjectId(user_id),
@@ -363,6 +365,24 @@ def get_practice_stats():
 
 def check_latex_answer(user_answer, target_answer):
     """检查 LaTeX 答案是否正确 - 支持语义等价性检查"""
+    try:
+        user_normalized = normalize_latex(user_answer)
+        target_normalized = normalize_latex(target_answer)
+
+        # 直接比较标准化后的结果
+        result = user_normalized == target_normalized
+
+        return result
+
+    except Exception:
+        # 出错时回退到简单比较
+        try:
+            simple_user = user_answer.strip().lower().replace(' ', '')
+            simple_target = target_answer.strip().lower().replace(' ', '')
+            return simple_user == simple_target
+        except:
+            return False
+
 
 def normalize_latex(latex_str):
     """增强的LaTeX标准化函数，与前端逻辑对齐"""
@@ -391,22 +411,6 @@ def normalize_latex(latex_str):
         for cmd in spacing_commands:
             latex_str = latex_str.replace(cmd, ' ')
 
-        # 4. 标准化等价命令 (核心变更)
-        # 将各种形式映射到单一的、标准的LaTeX形式
-        equivalence_mappings = {
-            '\\ne': '\\neq',
-            '\\le': '\\leq',
-            '\\ge': '\\geq',
-            '\\to': '\\rightarrow',
-            '\\gets': '\\leftarrow',
-            '\\iff': '\\leftrightarrow',
-            '\\cong': '\\approx',
-            '\\subset': '\\subseteq',
-            '\\supset': '\\supseteq',
-            '\\lt': '<',
-            '\\gt': '>',
-            '\\cdot': '\\times',
-        }
         # 4. 标准化等价命令 (最终修复方案：使用 re.sub 和精确的负向先行断言)
         replacement_map = {
             '\\ne': '\\neq',
@@ -468,24 +472,6 @@ def normalize_latex(latex_str):
     except Exception:
         # 如果出错，回退到简单处理
         return latex_str.strip().lower().replace(' ', '')
-
-    try:
-        user_normalized = normalize_latex(user_answer)
-        target_normalized = normalize_latex(target_answer)
-
-        # 直接比较标准化后的结果
-        result = user_normalized == target_normalized
-
-        return result
-
-    except Exception:
-        # 出错时回退到简单比较
-        try:
-            simple_user = user_answer.strip().lower().replace(' ', '')
-            simple_target = target_answer.strip().lower().replace(' ', '')
-            return simple_user == simple_target
-        except:
-            return False
 
 
 def get_feedback(is_correct, user_answer, target_answer):

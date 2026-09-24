@@ -59,6 +59,17 @@ const Layout = () => {
               >
                 {t('nav.review')}
               </Link>
+
+              <Link
+                to="/app/practice"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/app/practice')
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                {t('nav.practice')}
+              </Link>
             </nav>
 
             {/* 移动端汉堡菜单按钮 */}
@@ -152,6 +163,17 @@ const Layout = () => {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   {t('nav.review')}
+                </Link>
+                <Link
+                  to="/app/practice"
+                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                    isActive('/app/practice')
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {t('nav.practice')}
                 </Link>
               </div>
             </div>

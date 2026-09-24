@@ -136,7 +136,7 @@ const HomePage = () => {
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center space-x-2"
             >
               <span>⚡</span>
-              <span>{t('home.quickExperience')}</span>
+              <span>{t('home.offlinePractice')}</span>
             </Link>
 
             {!user && (

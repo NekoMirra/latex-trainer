@@ -1,0 +1,3 @@
+# Windows 批处理脚本必须以 CRLF 检出，否则 cmd.exe 在 if 块内会错位读取
+*.cmd text eol=crlf
+*.bat text eol=crlf

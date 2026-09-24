@@ -170,7 +170,15 @@ class RealApiAdapter {
   // 练习相关方法
   async getPractices(filters = {}) {
     try {
-      const response = await this.api.get('/practices', { params: filters })
+      // 后端 /practice/list 支持 course、difficulty 与 language 三个参数
+      const params = { language: i18n.language || 'zh-CN' }
+      if (filters.course) {
+        params.course = filters.course
+      }
+      if (filters.difficulty) {
+        params.difficulty = filters.difficulty
+      }
+      const response = await this.api.get('/practice/list', { params })
       return response.data
     } catch (error) {
       console.error('获取练习列表失败:', error)
@@ -205,11 +213,18 @@ class RealApiAdapter {
 
   async getPracticeStats() {
     try {
-      const response = await this.api.get('/practices/stats')
+      const response = await this.api.get('/practice/stats')
       return response.data
     } catch (error) {
       console.error('获取练习统计失败:', error)
-      return { totalAttempts: 0, correctAttempts: 0, accuracy: 0 }
+      return {
+        total_practices: 0,
+        correct_count: 0,
+        accuracy_rate: 0,
+        total_attempts: 0,
+        difficulty_stats: {},
+        recent_activity: []
+      }
     }
   }
 

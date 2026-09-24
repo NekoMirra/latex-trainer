@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from app.models.review import Review
 from app.models.lesson import Lesson
+from app.services.localization import localized_card, localized_title
 
 reviews_bp = Blueprint('reviews', __name__)
 
@@ -45,12 +46,8 @@ def get_today_reviews():
                 # 获取课程信息
                 lesson = db.lessons.find_one({'_id': practice_record['lesson_id']})
                 if lesson and practice_record['card_index'] < len(lesson['cards']):
-                    card = lesson['cards'][practice_record['card_index']]
-
-                    # 根据语言选择课程标题
-                    lesson_title = lesson['title']
-                    if language == 'en-US' and lesson.get('title_en'):
-                        lesson_title = lesson['title_en']
+                    card = localized_card(lesson, practice_record['card_index'], language)
+                    lesson_title = localized_title(lesson, language)
 
                     reviews_data.append({
                         'review_id': str(review._id),
@@ -178,12 +175,8 @@ def get_review_items():
                 # 获取课程信息
                 lesson = db.lessons.find_one({'_id': practice_record['lesson_id']})
                 if lesson and practice_record['card_index'] < len(lesson['cards']):
-                    card = lesson['cards'][practice_record['card_index']]
-
-                    # 根据语言选择课程标题
-                    lesson_title = lesson['title']
-                    if language == 'en-US' and lesson.get('title_en'):
-                        lesson_title = lesson['title_en']
+                    card = localized_card(lesson, practice_record['card_index'], language)
+                    lesson_title = localized_title(lesson, language)
 
                     items_data.append({
                         'id': str(review._id),

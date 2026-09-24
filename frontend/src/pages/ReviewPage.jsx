@@ -6,12 +6,13 @@ import { reviewAPI } from '../services/api'
 import PracticeCard from '../components/PracticeCard'
 
 const ReviewPage = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [reviews, setReviews] = useState([])
   const [stats, setStats] = useState(null)
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showStats, setShowStats] = useState(false)
+  const [nextReviewDate, setNextReviewDate] = useState(null)
   const navigate = useNavigate()
 
   // PracticeCard引用，用于自动聚焦
@@ -47,6 +48,11 @@ const ReviewPage = () => {
 
       const response = await reviewAPI.submitReview(submitData)
 
+      // 记录 SM-2 排出的下次复习时间，供界面显示
+      if (response?.next_review_date) {
+        setNextReviewDate(response.next_review_date)
+      }
+
       // 移除自动跳转，让用户手动控制复习进度
       // 用户可以通过"下一题"按钮或Enter键手动切换到下一题
 
@@ -59,6 +65,7 @@ const ReviewPage = () => {
 
   // 手动切换到下一题
   const handleNextReview = () => {
+    setNextReviewDate(null)
     if (currentReviewIndex < reviews.length - 1) {
       setCurrentReviewIndex(currentReviewIndex + 1)
       // 延迟聚焦，确保组件状态已重置
@@ -280,6 +287,13 @@ const ReviewPage = () => {
               <p>🧠 {t('reviewPage.memoryStrength', { strength: currentReview.easiness_factor || 2.5 })}</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 上一题提交后 SM-2 排出的下次复习时间 */}
+      {nextReviewDate && (
+        <div className="mb-6 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-3 text-sm text-green-800 dark:text-green-200">
+          ⏰ {t('reviewPage.nextReview')}: {new Date(nextReviewDate).toLocaleDateString(i18n.language)}
         </div>
       )}
 

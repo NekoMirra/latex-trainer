@@ -59,9 +59,6 @@ def get_lessons():
     except Exception as e:
         return jsonify({'message': f'服务器错误: {str(e)}'}), 500
 
-    except Exception as e:
-        return jsonify({'message': f'服务器错误: {str(e)}'}), 500
-
 
 # 旧的硬编码翻译函数已移除，现在使用数据库中的翻译数据
 

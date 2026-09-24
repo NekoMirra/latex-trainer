@@ -261,6 +261,11 @@ local_*.js
 *.crt
 *.cert
 
+# ===== 本地运行时（不进仓库） =====
+.local/
+.omp/
+backend/.venv/
+
 # ===== 其他 =====
 # 压缩文件
 *.zip

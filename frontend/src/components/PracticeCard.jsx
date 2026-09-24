@@ -3,40 +3,6 @@ import { useTranslation } from 'react-i18next'
 import MarkdownRenderer from './MarkdownRenderer'
 import { learningAPI } from '../services/api'
 import { checkAdvancedAnswerEquivalence } from '../utils/answerValidation'
-import { translateHint, translateAllHintsShown } from '../utils/hintTranslator'
-
-// 练习题翻译映射
-const practiceTranslations = {
-  '请输入 LaTeX 代码来表示：x 的平方': 'Please enter LaTeX code to represent: x squared',
-  '请输入 LaTeX 代码来表示：a 下标 1': 'Please enter LaTeX code to represent: a subscript 1',
-  '请输入 LaTeX 代码来表示：x 下标 n 的平方': 'Please enter LaTeX code to represent: x subscript n squared',
-  '请输入 LaTeX 代码来表示分数：二分之一': 'Please enter LaTeX code to represent fraction: one half',
-  '请输入 LaTeX 代码来表示：根号 2': 'Please enter LaTeX code to represent: square root of 2',
-  '请输入 LaTeX 代码来表示：x 加 y 的平方，除以 2': 'Please enter LaTeX code to represent: x plus y squared, divided by 2',
-  '请输入 LaTeX 代码来表示：三次根号下 8': 'Please enter LaTeX code to represent: cube root of 8',
-  '请输入 LaTeX 代码来表示希腊字母：π (圆周率)': 'Please enter LaTeX code to represent Greek letter: π (pi)',
-  '请输入 LaTeX 代码来表示：α + β': 'Please enter LaTeX code to represent: α + β',
-  '请输入 LaTeX 代码来表示：x ≠ ∞': 'Please enter LaTeX code to represent: x ≠ ∞',
-  '请输入 LaTeX 代码来表示：Δx ≈ 0': 'Please enter LaTeX code to represent: Δx ≈ 0',
-  '请输入 LaTeX 代码来表示：sin x': 'Please enter LaTeX code to represent: sin x',
-  '请输入 LaTeX 代码来表示：f(x) = x²': 'Please enter LaTeX code to represent: f(x) = x²',
-  '请输入 LaTeX 代码来表示：sin²θ + cos²θ = 1': 'Please enter LaTeX code to represent: sin²θ + cos²θ = 1',
-  '请输入 LaTeX 代码来表示：ln(e^x) = x': 'Please enter LaTeX code to represent: ln(e^x) = x',
-  '请输入 LaTeX 代码来表示：从 i=1 到 n 的求和': 'Please enter LaTeX code to represent: summation from i=1 to n',
-  '请输入 LaTeX 代码来表示：从 0 到 1 的定积分': 'Please enter LaTeX code to represent: definite integral from 0 to 1',
-  '请输入 LaTeX 代码来表示：当 x 趋向于 0 时 f(x) 的极限': 'Please enter LaTeX code to represent: limit of f(x) as x approaches 0',
-  '请输入 LaTeX 代码来表示：∫₀¹ x² dx = 1/3': 'Please enter LaTeX code to represent: ∫₀¹ x² dx = 1/3',
-  '请输入 LaTeX 代码来表示一个 2×2 矩阵（带圆括号）': 'Please enter LaTeX code to represent a 2×2 matrix (with parentheses)',
-  '请输入 LaTeX 代码来表示向量 v（带箭头）': 'Please enter LaTeX code to represent vector v (with arrow)',
-  '请输入 LaTeX 代码来表示两个向量的点积：a⃗ · b⃗': 'Please enter LaTeX code to represent dot product of two vectors: a⃗ · b⃗',
-  '请输入 LaTeX 代码来表示 3×3 单位矩阵': 'Please enter LaTeX code to represent 3×3 identity matrix'
-}
-
-// 成功提示翻译
-const successMessages = {
-  '🎉 太棒了！答案完全正确！': '🎉 Excellent! Your answer is completely correct!',
-  '🎉 恭喜答对了！': '🎉 Congratulations on getting it right!'
-}
 
 const PracticeCard = forwardRef(({
   card,
@@ -48,33 +14,15 @@ const PracticeCard = forwardRef(({
   onComplete,
   isReviewMode = false // 新增：是否为复习模式
 }, ref) => {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
 
   // 数据适配器：支持新旧两种数据格式
   const practiceData = exercise || card
   const targetFormula = practiceData?.answer || practiceData?.target_formula || ''
-  const rawQuestionText = practiceData?.question || ''
+  const questionText = practiceData?.question || ''
   const hintText = practiceData?.hint || practiceData?.hints?.[0] || ''
   const hints = practiceData?.hints || [] // 添加 hints 数组定义
   const difficulty = practiceData?.difficulty || 'easy'
-
-  // 翻译练习题描述
-  const translateQuestionText = (text) => {
-    if (i18n.language === 'en-US' && practiceTranslations[text]) {
-      return practiceTranslations[text]
-    }
-    return text
-  }
-
-  // 翻译成功提示
-  const translateSuccessMessage = (message) => {
-    if (i18n.language === 'en-US' && successMessages[message]) {
-      return successMessages[message]
-    }
-    return message
-  }
-
-  const questionText = translateQuestionText(rawQuestionText)
 
   const [userAnswer, setUserAnswer] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -82,7 +30,6 @@ const PracticeCard = forwardRef(({
   const [showHint, setShowHint] = useState(false)
   const [currentHint, setCurrentHint] = useState('')
   const [hintLevel, setHintLevel] = useState(0)
-  const [originalHint, setOriginalHint] = useState('') // 存储原始提示内容用于重新翻译
   const [isCorrect, setIsCorrect] = useState(false)
   const [syntaxSuggestions, setSyntaxSuggestions] = useState([])
 
@@ -109,25 +56,6 @@ const PracticeCard = forwardRef(({
     }
   }, [cardIndex]) // 当卡片索引变化时重新聚焦
 
-  // 监听语言变化，重新翻译当前显示的提示
-  useEffect(() => {
-    if (showHint && originalHint) {
-      if (originalHint === 'NO_HINT') {
-        // 无提示情况
-        setCurrentHint(t('practice.noHint'))
-      } else if (originalHint.includes('|||ALL_HINTS_SHOWN')) {
-        // 所有提示已显示的情况
-        const lastHint = originalHint.replace('|||ALL_HINTS_SHOWN', '')
-        const translatedMessage = translateAllHintsShown(lastHint, t)
-        setCurrentHint(translatedMessage)
-      } else {
-        // 普通提示情况
-        const translatedHint = translateHint(originalHint, t)
-        setCurrentHint(translatedHint)
-      }
-    }
-  }, [t, showHint, originalHint])
-
   // 检查当前练习是否已完成并加载状态
   useEffect(() => {
     const checkPracticeStatus = async () => {
@@ -140,7 +68,6 @@ const PracticeCard = forwardRef(({
         setShowHint(false)
         setCurrentHint('')
         setHintLevel(0)
-        setOriginalHint('')
         setSyntaxSuggestions([])
         return
       }
@@ -370,19 +297,14 @@ const PracticeCard = forwardRef(({
     if (hints && Array.isArray(hints) && hints.length > 0) {
       const nextHintIndex = hintLevel
       if (nextHintIndex < hints.length) {
-        const originalHintText = hints[nextHintIndex]
-        const translatedHint = translateHint(originalHintText, t)
-        setOriginalHint(originalHintText) // 存储原始提示
-        setCurrentHint(translatedHint)
+        setCurrentHint(hints[nextHintIndex])
         setHintLevel(nextHintIndex + 1)
         setShowHint(true)
         return
       } else {
         // 所有预设提示都用完了，保持显示最后一个提示，并添加提示信息
         const lastHint = hints[hints.length - 1]
-        const translatedMessage = translateAllHintsShown(lastHint, t)
-        setOriginalHint(`${lastHint}|||ALL_HINTS_SHOWN`) // 特殊标记表示所有提示已显示
-        setCurrentHint(translatedMessage)
+        setCurrentHint(`${lastHint}\n\n💡 ${t('practice.allHintsShown')}`)
         setShowHint(true)
         return
       }
@@ -395,19 +317,15 @@ const PracticeCard = forwardRef(({
     const nextHintIndex = hintLevel
     if (nextHintIndex < smartHints.length) {
       const smartHint = smartHints[nextHintIndex]
-      setOriginalHint(smartHint) // 存储原始提示
       setCurrentHint(smartHint)
       setHintLevel(nextHintIndex + 1)
       setShowHint(true)
     } else if (hintText) {
       // 如果智能提示用完了，使用原始提示
-      const translatedHint = translateHint(hintText, t)
-      setOriginalHint(hintText) // 存储原始提示
-      setCurrentHint(translatedHint)
+      setCurrentHint(hintText)
       setShowHint(true)
     } else {
       const noMoreHints = t('practice.noHint')
-      setOriginalHint('NO_HINT') // 特殊标记
       setCurrentHint(noMoreHints)
       setShowHint(true)
     }

@@ -199,6 +199,29 @@ VITE_API_BASE_URL=http://localhost:5000/api
 VITE_DEV_MODE=true
 ```
 
+## ⚡ Windows 本地一键部署（便携 MongoDB，无需装服务）
+
+仓库自带 `scripts/` 下的批处理脚本，会在 `.local/`（已 git 忽略）里放便携版 MongoDB 7.0.14 与数据目录，不动系统服务。
+
+```bat
+:: 1. 准备环境：下载解压 MongoDB、建 Python 3.10 虚拟环境装后端依赖、生成 backend\.env、装前端依赖
+scripts\setup-local.cmd
+
+:: 2. 启动数据库（保持窗口不关）
+scripts\start-mongodb.cmd
+
+:: 3. 启动后端（另开一个窗口）
+scripts\start-backend.cmd
+
+:: 4. 把 data\latex_bank.json 的题库写进数据库（另开一个窗口，只需在题库变化后重跑）
+scripts\seed-db.cmd
+
+:: 5. 启动前端（另开一个窗口）
+scripts\start-frontend.cmd
+```
+
+`backend\.venv` 固定用 Python 3.10：`pymongo==4.1.1` 只有到 cp310 的 Windows wheel。
+
 ## 🚀 启动应用
 
 ### 开发模式
@@ -210,16 +233,23 @@ cd backend
 source venv/bin/activate  # macOS/Linux
 # 或 venv\Scripts\activate  # Windows
 
-python app.py
+python run.py
 ```
 
-#### 2. 启动前端 (终端2)
+#### 2. 初始化题库 (终端2)
+```bash
+cd backend
+python seed_db.py --reset
+```
+`seed_db.py` 从 `data/latex_bank.json`（题库唯一源头）读取 18 课的全部卡片与中英翻译，写进 MongoDB；`--reset` 会清空并重建课程、用户与练习记录。同一条逻辑也通过 `/api/reset-db`（仅开发环境）与 `/api/init-db`（生产首次部署，需 `INIT_DB_SECRET`）暴露。
+
+#### 3. 启动前端 (终端3)
 ```bash
 cd frontend
 npm run dev
 ```
 
-#### 3. 访问应用
+#### 4. 访问应用
 - 前端: http://localhost:5173
 - 后端API: http://localhost:5000
 
@@ -239,7 +269,7 @@ export MONGODB_URI=mongodb://your-production-db
 
 # 启动后端
 cd backend
-python app.py
+python run.py
 ```
 
 ## 🔍 故障排除

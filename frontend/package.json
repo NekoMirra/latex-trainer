@@ -9,7 +9,8 @@
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test": "jest --testPathIgnorePatterns=.*\\.spec\\.js"
+    "test": "jest --testPathIgnorePatterns=.*\\.spec\\.js",
+    "check:bank": "node scripts/check-bank.mjs"
   },
   "jest": {
     "testEnvironment": "jsdom",

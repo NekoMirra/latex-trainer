@@ -259,6 +259,25 @@ const DashboardPage = () => {
           </div>
         </div>
 
+        {/* 练习中心 */}
+        <div className="card">
+          <div className="card-body h-full">
+            <div className="flex flex-col h-full text-center">
+              <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                {t('practiceCenter.entryTitle')}
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 flex-grow">
+                {t('practiceCenter.entryDesc')}
+              </p>
+              <Link
+                to="/app/practice"
+                className="btn btn-primary w-full md:w-auto"
+              >
+                {t('practiceCenter.entryAction')}
+              </Link>
+            </div>
+          </div>
+        </div>
 
       </div>
 

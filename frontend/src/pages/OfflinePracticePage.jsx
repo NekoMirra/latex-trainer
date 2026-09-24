@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDocumentTitle, PAGE_TITLES } from '../hooks/useDocumentTitle'
 import MarkdownRenderer from '../components/MarkdownRenderer'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import LanguageSwitcher from '../components/LanguageSwitcher'
-import { getQuickExperienceData } from '../data/quickExperience'
-import { translateHint, translateAllHintsShown } from '../utils/hintTranslator'
+import { getPracticeQuestions, getLessonsMeta } from '../data/bank'
 import { checkAdvancedAnswerEquivalence } from '../utils/answerValidation'
+
+// 随机练习模式抽取的题量
+const RANDOM_QUESTION_COUNT = 20
 
 const OfflinePracticePage = () => {
   const navigate = useNavigate()
@@ -20,41 +22,53 @@ const OfflinePracticePage = () => {
   const [feedback, setFeedback] = useState(null)
   const [isCorrect, setIsCorrect] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [allQuestions, setAllQuestions] = useState([])
   const [questions, setQuestions] = useState([])
   const [score, setScore] = useState(0)
   const [showResults, setShowResults] = useState(false)
   const [showHint, setShowHint] = useState(false)
   const [currentHint, setCurrentHint] = useState('')
   const [hintLevel, setHintLevel] = useState(0)
-  const [originalHint, setOriginalHint] = useState('') // 存储原始提示内容用于重新翻译
   const [answeredQuestions, setAnsweredQuestions] = useState(0)
+  // 筛选条件：课程（sequence 或 'all'）、难度（easy/medium/hard 或 'all'）
+  const [courseFilter, setCourseFilter] = useState('all')
+  const [difficultyFilter, setDifficultyFilter] = useState('all')
+  // 大于 0 表示随机题集模式，每次自增都重新抽取一批
+  const [randomToken, setRandomToken] = useState(0)
 
-  // 从Quick Experience数据中加载练习题，根据当前语言动态加载对应数据文件
+  // 课程下拉选项（随当前语言变化）
+  const lessonsMeta = useMemo(() => getLessonsMeta(i18n.language), [i18n.language])
+
+  // 题库数据已本地化：语言变化时直接重建全量题集
   useEffect(() => {
-    const data = getQuickExperienceData(i18n.language)
-    setQuestions(data.questions)
+    setAllQuestions(getPracticeQuestions(i18n.language))
   }, [i18n.language])
 
-  // 监听语言变化，重新翻译当前显示的提示
+  // 题集或筛选条件变化时重建练习队列，并把进度重置到第一题
   useEffect(() => {
-    if (showHint && originalHint) {
-      if (originalHint === 'NO_HINT') {
-        // 无提示情况
-        setCurrentHint(t('practice.noHint'))
-      } else if (originalHint.includes('|||ALL_HINTS_SHOWN')) {
-        // 所有提示已显示的情况
-        const lastHint = originalHint.replace('|||ALL_HINTS_SHOWN', '')
-        const translatedMessage = translateAllHintsShown(lastHint, t)
-        setCurrentHint(translatedMessage)
-      } else {
-        // 普通提示情况
-        const translatedHint = translateHint(originalHint, t)
-        setCurrentHint(translatedHint)
-      }
+    let list = allQuestions
+    if (courseFilter !== 'all') {
+      list = list.filter((question) => question.sequence === Number(courseFilter))
     }
-  }, [i18n.language, showHint, originalHint, t])
+    if (difficultyFilter !== 'all') {
+      list = list.filter((question) => question.difficulty === difficultyFilter)
+    }
+    if (randomToken > 0) {
+      list = [...list].sort(() => Math.random() - 0.5).slice(0, RANDOM_QUESTION_COUNT)
+    }
 
-
+    setQuestions(list)
+    setCurrentQuestionIndex(0)
+    setUserAnswer('')
+    setFeedback(null)
+    setIsCorrect(false)
+    setShowHint(false)
+    setCurrentHint('')
+    setHintLevel(0)
+    setScore(0)
+    setAnsweredQuestions(0)
+    setShowResults(false)
+  }, [allQuestions, courseFilter, difficultyFilter, randomToken])
 
   const currentQuestion = questions[currentQuestionIndex]
 
@@ -117,7 +131,6 @@ const OfflinePracticePage = () => {
       setIsCorrect(false)
       setShowHint(false)
       setCurrentHint('')
-      setOriginalHint('') // 重置原始提示
       setHintLevel(0) // 重置提示级别
     } else {
       // 显示最终结果
@@ -126,29 +139,19 @@ const OfflinePracticePage = () => {
   }
 
   const handleGetHint = () => {
-    const currentQuestion = questions[currentQuestionIndex]
-    if (currentQuestion && currentQuestion.hints && currentQuestion.hints.length > 0) {
-      // 渐进式提示：每次显示下一个提示
-      const nextHintIndex = hintLevel
-      if (nextHintIndex < currentQuestion.hints.length) {
-        const originalHintText = currentQuestion.hints[nextHintIndex]
-        const translatedHint = translateHint(originalHintText, t)
-        setOriginalHint(originalHintText) // 存储原始提示
-        setCurrentHint(translatedHint)
-        setHintLevel(nextHintIndex + 1)
-        setShowHint(true)
+    const hints = currentQuestion?.hints
+    if (hints && hints.length > 0) {
+      if (hintLevel < hints.length) {
+        // 渐进式提示：数据已本地化，直接取当前级别的提示
+        setCurrentHint(hints[hintLevel])
+        setHintLevel(hintLevel + 1)
       } else {
-        // 所有提示都用完了，保持显示最后一个提示，并添加提示信息
-        const lastHint = currentQuestion.hints[currentQuestion.hints.length - 1]
-        const translatedMessage = translateAllHintsShown(lastHint, t)
-        setOriginalHint(`${lastHint}|||ALL_HINTS_SHOWN`) // 特殊标记表示所有提示已显示
-        setCurrentHint(translatedMessage)
-        setShowHint(true)
+        // 提示已用尽：保持显示最后一条，并附上「已显示所有提示」文案
+        setCurrentHint(`${hints[hints.length - 1]}\n\n💡 ${t('practice.allHintsShown')}`)
       }
+      setShowHint(true)
     } else {
-      const noHintMessage = t('practice.noHint')
-      setOriginalHint('NO_HINT') // 特殊标记
-      setCurrentHint(noHintMessage)
+      setCurrentHint(t('practice.noHint'))
       setShowHint(true)
     }
   }
@@ -167,6 +170,22 @@ const OfflinePracticePage = () => {
     }
   }
 
+  // 切换筛选条件时退出随机模式，按筛选结果的原始顺序练习
+  const handleCourseFilterChange = (e) => {
+    setCourseFilter(e.target.value)
+    setRandomToken(0)
+  }
+
+  const handleDifficultyFilterChange = (e) => {
+    setDifficultyFilter(e.target.value)
+    setRandomToken(0)
+  }
+
+  // 随机抽取一批题目，重复点击则重新抽取
+  const handleShuffleStart = () => {
+    setRandomToken((prev) => prev + 1)
+  }
+
   const restartPractice = () => {
     setCurrentQuestionIndex(0)
     setUserAnswer('')
@@ -177,14 +196,95 @@ const OfflinePracticePage = () => {
     setShowResults(false)
   }
 
-  // 删除测试功能，保持界面简洁
+  // 筛选控件：主视图与空状态共用
+  const filterControls = (
+    <div className="flex flex-wrap items-end gap-3 mb-4">
+      <div className="flex flex-col">
+        <label htmlFor="course-filter" className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+          {t('offlinePractice.filterCourse')}
+        </label>
+        <select
+          id="course-filter"
+          value={courseFilter}
+          onChange={handleCourseFilterChange}
+          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none max-w-[280px]"
+        >
+          <option value="all">{t('offlinePractice.allOption')}</option>
+          {lessonsMeta.map((lesson) => (
+            <option key={lesson.sequence} value={lesson.sequence}>
+              {lesson.title}
+            </option>
+          ))}
+        </select>
+      </div>
 
-  if (questions.length === 0) {
+      <div className="flex flex-col">
+        <label htmlFor="difficulty-filter" className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+          {t('offlinePractice.filterDifficulty')}
+        </label>
+        <select
+          id="difficulty-filter"
+          value={difficultyFilter}
+          onChange={handleDifficultyFilterChange}
+          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+        >
+          <option value="all">{t('offlinePractice.allOption')}</option>
+          <option value="easy">{t('practice.difficulty.easy')}</option>
+          <option value="medium">{t('practice.difficulty.medium')}</option>
+          <option value="hard">{t('practice.difficulty.hard')}</option>
+        </select>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleShuffleStart}
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          randomToken > 0
+            ? 'bg-blue-600 text-white hover:bg-blue-700'
+            : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
+        }`}
+      >
+        {t('offlinePractice.shuffleStart')}
+      </button>
+    </div>
+  )
+
+  // 题库尚未加载完成
+  if (allQuestions.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">{t('offlinePractice.loading')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 当前筛选条件下没有题目：保留筛选控件以便调整
+  if (questions.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => navigate('/')}
+            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center text-sm"
+          >
+            {t('offlinePractice.backToHome')}
+          </button>
+
+          <div className="flex items-center space-x-2">
+            <ThemeSwitcher />
+            <LanguageSwitcher />
+          </div>
+        </div>
+
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">{t('offlinePractice.title')}</h1>
+
+        {filterControls}
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
+          <p className="text-gray-600 dark:text-gray-400">{t('offlinePractice.empty')}</p>
         </div>
       </div>
     )
@@ -211,7 +311,7 @@ const OfflinePracticePage = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold text-gray-600">{questions.length}</div>
-                <div className="text-sm text-gray-600">总题数</div>
+                <div className="text-sm text-gray-600">{t('offlinePractice.totalQuestions')}</div>
               </div>
               <div>
                 <div className="text-2xl font-bold text-green-600">{percentage}%</div>
@@ -270,7 +370,10 @@ const OfflinePracticePage = () => {
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('offlinePractice.title')}</h1>
-        <p className="text-gray-600 dark:text-gray-400">{t('offlinePractice.currentAccuracy', { accuracy: answeredQuestions > 0 ? Math.round((score / answeredQuestions) * 100) : 0 })}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">{t('offlinePractice.currentAccuracy', { accuracy: answeredQuestions > 0 ? Math.round((score / answeredQuestions) * 100) : 0 })}</p>
+
+        {/* 课程 / 难度筛选与随机题集 */}
+        {filterControls}
       </div>
 
       {/* 练习题卡片 */}
