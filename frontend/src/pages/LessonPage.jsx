@@ -115,6 +115,9 @@ const LessonPage = () => {
       // 检查输入框是否为只读状态（练习题已完成）
       const isReadOnly = activeElement && activeElement.readOnly
 
+      // 按钮与链接的回车由控件自身触发点击，避免与下面的导航重复推进
+      const isOnControl = activeElement && (activeElement.tagName === 'BUTTON' || activeElement.tagName === 'A')
+
       // 如果用户正在输入（非只读状态），只处理 Escape 键
       if (isInInput && !isReadOnly && event.key !== 'Escape') {
         return
@@ -126,6 +129,14 @@ const LessonPage = () => {
           handlePrevKnowledgePoint()
           break
         case 'ArrowRight':
+          event.preventDefault()
+          handleNextKnowledgePoint()
+          break
+        case 'Enter':
+          // 知识点卡片上没有输入控件，回车直接进入下一个知识点
+          if (isInInput || isOnControl) {
+            return
+          }
           event.preventDefault()
           handleNextKnowledgePoint()
           break

@@ -27,11 +27,6 @@ class Config:
     # 管理后台配置
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
 
-    # OAuth 配置
-    # Google OAuth
-    GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-    GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-
     # GitHub OAuth
     GITHUB_CLIENT_ID = os.environ.get('GITHUB_CLIENT_ID')
     GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_CLIENT_SECRET')

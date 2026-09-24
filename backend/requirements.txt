@@ -13,5 +13,3 @@ pytest
 # OAuth 相关依赖
 authlib==1.2.1
 cryptography==41.0.7
-google-auth==2.23.4
-google-auth-oauthlib==1.1.0

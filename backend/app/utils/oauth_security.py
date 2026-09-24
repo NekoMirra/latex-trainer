@@ -6,105 +6,12 @@ import json
 import requests
 from datetime import datetime
 from cryptography.fernet import Fernet
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
 from flask import current_app
 
 
 class OAuthSecurity:
     """OAuth安全措施"""
-    
-    @staticmethod
-    def exchange_google_code(code):
-        """交换Google授权码获取访问令牌"""
-        try:
-            import os
-            # 直接从环境变量获取配置，避免Flask配置问题
-            client_id = os.environ.get('GOOGLE_CLIENT_ID') or current_app.config.get('GOOGLE_CLIENT_ID')
-            client_secret = os.environ.get('GOOGLE_CLIENT_SECRET') or current_app.config.get('GOOGLE_CLIENT_SECRET')
-            redirect_uri = os.environ.get('OAUTH_REDIRECT_URI') or current_app.config.get('OAUTH_REDIRECT_URI')
-            # 清理URL中的双斜杠（除了协议部分）
-            if redirect_uri:
-                redirect_uri = redirect_uri.replace('://', '|||PROTOCOL|||').replace('//', '/').replace('|||PROTOCOL|||', '://')
 
-            if not client_id or not client_secret:
-                current_app.logger.error(f"Missing Google OAuth config: client_id={bool(client_id)}, client_secret={bool(client_secret)}")
-                return None
-
-            data = {
-                'client_id': client_id,
-                'client_secret': client_secret,
-                'code': code,
-                'grant_type': 'authorization_code',
-                'redirect_uri': redirect_uri
-            }
-
-            response = requests.post(
-                'https://oauth2.googleapis.com/token',
-                data=data,
-                headers={'Accept': 'application/json'}
-            )
-
-            if response.status_code == 200:
-                token_data = response.json()
-                return token_data.get('access_token')
-            else:
-                current_app.logger.error(f"Google OAuth token exchange failed: {response.status_code}")
-                return None
-        except Exception as e:
-            current_app.logger.error(f"Google code exchange failed: {e}")
-            return None
-
-    @staticmethod
-    def validate_google_access_token(access_token):
-        """使用访问令牌获取Google用户信息"""
-        try:
-            headers = {
-                'Authorization': f'Bearer {access_token}',
-                'Accept': 'application/json'
-            }
-
-            response = requests.get(
-                'https://www.googleapis.com/oauth2/v2/userinfo',
-                headers=headers
-            )
-
-            if response.status_code == 200:
-                return response.json()
-            else:
-                current_app.logger.error(f"Google user info request failed: {response.status_code}")
-                return None
-        except Exception as e:
-            current_app.logger.error(f"Google access token validation failed: {e}")
-            return None
-
-    @staticmethod
-    def validate_google_token(credential):
-        """验证Google ID Token（保留用于兼容性）"""
-        try:
-            import os
-            client_id = os.environ.get('GOOGLE_CLIENT_ID') or current_app.config.get('GOOGLE_CLIENT_ID')
-
-            if not client_id:
-                current_app.logger.error("Missing GOOGLE_CLIENT_ID for token validation")
-                return None
-
-            # 验证Google ID Token
-            idinfo = id_token.verify_oauth2_token(
-                credential,
-                google_requests.Request(),
-                client_id
-            )
-
-            # 检查token是否来自正确的发行者
-            if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-                raise ValueError('Wrong issuer.')
-
-            return idinfo
-        except ValueError as e:
-            current_app.logger.error(f"Google token validation failed: {e}")
-            return None
-    
     @staticmethod
     def validate_github_token(access_token):
         """验证GitHub访问令牌并获取用户信息"""
@@ -276,20 +183,12 @@ class AccountLinkingStrategy:
     @staticmethod
     def prepare_oauth_data(provider, user_info, access_token=None, refresh_token=None):
         """准备OAuth数据"""
-        # 根据提供商确定用户ID字段
-        if provider == 'google':
-            provider_id = str(user_info.get('id') or user_info.get('sub'))
-            avatar_url = user_info.get('picture')
-        else:  # github
-            provider_id = str(user_info.get('id'))
-            avatar_url = user_info.get('avatar_url')
-
         oauth_data = {
             'provider': provider,
-            'provider_id': provider_id,
+            'provider_id': str(user_info.get('id')),
             'email': user_info.get('email'),
-            'name': user_info.get('name'),
-            'avatar_url': avatar_url,
+            'name': user_info.get('name') or user_info.get('login'),
+            'avatar_url': user_info.get('avatar_url'),
             'linked_at': datetime.utcnow()
         }
         

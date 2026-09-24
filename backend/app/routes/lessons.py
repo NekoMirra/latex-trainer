@@ -34,7 +34,7 @@ def get_lessons():
         user = User.find_by_id(current_user_id)
 
         if not user:
-            return jsonify({'message': '用户不存在'}), 404
+            return jsonify({'message': '用户不存在', 'code': 'USER_NOT_FOUND'}), 404
 
         # 获取语言参数
         lang = request.args.get('lang', 'zh-CN')
@@ -72,7 +72,7 @@ def get_lesson(lesson_id):
         user = User.find_by_id(current_user_id)
 
         if not user:
-            return jsonify({'message': '用户不存在'}), 404
+            return jsonify({'message': '用户不存在', 'code': 'USER_NOT_FOUND'}), 404
 
         # 支持两种格式的lesson_id：ObjectId 和 lesson-{sequence}
         lesson = None
@@ -115,7 +115,7 @@ def complete_lesson(lesson_id):
         user = User.find_by_id(current_user_id)
 
         if not user:
-            return jsonify({'message': '用户不存在'}), 404
+            return jsonify({'message': '用户不存在', 'code': 'USER_NOT_FOUND'}), 404
 
         # 支持两种格式的lesson_id：ObjectId 和 lesson-{sequence}
         lesson = None

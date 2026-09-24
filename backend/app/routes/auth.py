@@ -213,7 +213,7 @@ def get_current_user():
         user = User.find_by_id(current_user_id)
         
         if not user:
-            return jsonify({'message': '用户不存在'}), 404
+            return jsonify({'message': '用户不存在', 'code': 'USER_NOT_FOUND'}), 404
         
         return jsonify({
             'user': user.to_dict()
@@ -227,11 +227,13 @@ def get_current_user():
 
 @auth_bp.route('/oauth/config', methods=['GET'])
 def oauth_config():
-    """检查OAuth配置（仅用于调试）"""
+    """OAuth 配置探查：client_id 属于公开信息，供前端拼接授权地址"""
+    client_id = os.environ.get('GITHUB_CLIENT_ID') or ''
+    client_secret = os.environ.get('GITHUB_CLIENT_SECRET') or ''
     return jsonify({
         'redirect_uri': os.environ.get('OAUTH_REDIRECT_URI', 'NOT SET'),
-        'client_id_set': 'SET' if os.environ.get('GOOGLE_CLIENT_ID') else 'NOT SET',
-        'client_secret_set': 'SET' if os.environ.get('GOOGLE_CLIENT_SECRET') else 'NOT SET',
+        'github_client_id': client_id,
+        'github_configured': bool(client_id and client_secret),
         'timestamp': time.time()
     })
 
@@ -254,9 +256,9 @@ def _get_request_key(code):
 
 
 
-@auth_bp.route('/oauth/google', methods=['POST'])
-def google_login():
-    """Google OAuth 登录"""
+@auth_bp.route('/oauth/github', methods=['POST'])
+def github_login():
+    """GitHub OAuth 登录"""
     try:
         from app.utils.oauth_security import OAuthSecurity, AccountLinkingStrategy
 
@@ -279,33 +281,25 @@ def google_login():
                 return cached_response
 
         # 交换授权码获取访问令牌
-        access_token = OAuthSecurity.exchange_google_code(code)
+        access_token = OAuthSecurity.exchange_github_code(code)
         if not access_token:
             return jsonify({'error': 'Failed to exchange authorization code'}), 401
 
         # 使用访问令牌获取用户信息
-        user_info = OAuthSecurity.validate_google_access_token(access_token)
+        user_info = OAuthSecurity.validate_github_token(access_token)
         if not user_info:
             return jsonify({'error': 'Failed to get user information'}), 401
 
-        # 查找或创建用户
         email = user_info.get('email')
-        name = user_info.get('name', email.split('@')[0])
+        if not email:
+            return jsonify({
+                'error': 'GitHub account has no readable email',
+                'details': '请在授权时允许读取邮箱（scope: user:email），或在 GitHub 上设置公开邮箱'
+            }), 401
 
-        user = User.find_by_email(email)
-        action = 'login'
-
-        if not user:
-            # 创建新用户
-            user = User(
-                email=email,
-                display_name=name,
-                oauth_providers=['google']  # OAuth用户标识
-            )
-            if user.save():
-                action = 'created'
-            else:
-                return jsonify({'error': 'Failed to create user'}), 500
+        # 查找或创建用户，并绑定 GitHub 身份
+        oauth_data = AccountLinkingStrategy.prepare_oauth_data('github', user_info)
+        user, action = AccountLinkingStrategy.link_oauth_account(email, oauth_data)
 
         # 生成JWT token
         access_token_jwt = create_access_token(identity=str(user._id))
@@ -316,7 +310,7 @@ def google_login():
             'refresh_token': refresh_token,
             'user': user.to_dict(),
             'action': action,  # 'login', 'linked', 'created'
-            'message': f'Google OAuth {action} successful'
+            'message': f'GitHub OAuth {action} successful'
         }
 
         # 缓存成功的响应

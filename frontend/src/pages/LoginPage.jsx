@@ -8,7 +8,7 @@ import ThemeSwitcher from '../components/ThemeSwitcher'
 import Button from '../components/ui/Button'
 import { Input, Label } from '../components/ui/Input'
 import { Alert, AlertDescription } from '../components/ui/Alert'
-import GoogleLoginButton from '../components/auth/GoogleLoginButton'
+import GitHubLoginButton from '../components/auth/GitHubLoginButton'
 
 
 const LoginPage = () => {
@@ -165,7 +165,7 @@ const LoginPage = () => {
             </div>
 
             <div className="space-y-3">
-              <GoogleLoginButton />
+              <GitHubLoginButton />
             </div>
           </div>
 

@@ -1,6 +1,7 @@
 import axios from 'axios'
 import realApiAdapter from './realApiAdapter'
 import { useUserModeStore } from '../stores/userModeStore'
+import { isIdentityLost, handleIdentityLost } from './sessionGuard'
 
 // 动态获取API基础URL
 const getApiBaseUrl = () => {
@@ -87,6 +88,12 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config
+
+    // 会话对应用户已不存在：清除本地会话并回到登录页
+    if (isIdentityLost(error)) {
+      await handleIdentityLost()
+      return Promise.reject(error)
+    }
 
     // 如果是刷新请求本身，不要进行拦截处理
     if (originalRequest.url?.includes('/auth/refresh')) {

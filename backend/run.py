@@ -49,8 +49,8 @@ def env_check():
             'SECRET_KEY': is_set('SECRET_KEY'),
             'JWT_SECRET_KEY': is_set('JWT_SECRET_KEY'),
             'ADMIN_PASSWORD': is_set('ADMIN_PASSWORD'),
-            'GOOGLE_CLIENT_ID': is_set('GOOGLE_CLIENT_ID'),
-            'GOOGLE_CLIENT_SECRET': is_set('GOOGLE_CLIENT_SECRET'),
+            'GITHUB_CLIENT_ID': is_set('GITHUB_CLIENT_ID'),
+            'GITHUB_CLIENT_SECRET': is_set('GITHUB_CLIENT_SECRET'),
             'INIT_DB_SECRET': is_set('INIT_DB_SECRET'),
             'DEV_RESET_SECRET': is_set('DEV_RESET_SECRET')
         },
