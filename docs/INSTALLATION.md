@@ -276,7 +276,12 @@ python run.py
 
 ### 常见问题
 
-#### 1. MongoDB连接失败
+#### 1. mongod 启动一段时间后自己退出（退出码 14）
+`start-mongodb.cmd` 已默认加上 `--setParameter diagnosticDataCollectionEnabled=false`。原因是 mongod 的诊断采集线程 FTDC 靠重命名 `diagnostic.data/` 下的文件做轮转，在 Windows 上这一步可能被安全软件占用而失败（日志里的 `FileRenameFailed: 拒绝访问`、`FTDCController::doLoop`），失败会触发未捕获异常让 mongod 直接终止。关掉它只影响诊断数据采集，不影响读写。
+
+如果用的是自己启动的 mongod，同样在命令行补上这个参数；已经崩溃过的话，删掉 `diagnostic.data/metrics.interim.temp` 与 `bin/mongod.*.mdmp` 再启动即可，数据目录本身能正常恢复。
+
+#### 2. MongoDB连接失败
 ```bash
 # 检查MongoDB服务状态
 # Windows: 在服务管理器中查看
