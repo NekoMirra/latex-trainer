@@ -202,6 +202,43 @@ const useFrontendLessonStore = create(
         })
       },
 
+      // 用后端的练习记录补齐本地完成态（注册用户的 progress 不落 localStorage，刷新后会丢）
+      syncPracticeCompletedCards: (lesson, progress) => {
+        if (!lesson?.knowledgePoints?.length || !progress) return
+
+        const completedIds = Object.entries(progress)
+          .filter(([, record]) => record?.best_result)
+          .map(([cardIndex]) => lesson.knowledgePoints[Number(cardIndex)]?.id)
+          .filter(Boolean)
+
+        if (completedIds.length === 0) return
+
+        set((state) => {
+          const currentProgress = state.progress || {}
+          const completedKnowledgePoints = [...(currentProgress.completedKnowledgePoints || [])]
+          const lessonProgress = { ...(currentProgress.lessonProgress || {}) }
+          const lessonEntry = {
+            completed: lessonProgress[lesson.id]?.completed ?? false,
+            knowledgePoints: [...(lessonProgress[lesson.id]?.knowledgePoints || [])]
+          }
+
+          for (const id of completedIds) {
+            if (!completedKnowledgePoints.includes(id)) completedKnowledgePoints.push(id)
+            if (!lessonEntry.knowledgePoints.includes(id)) lessonEntry.knowledgePoints.push(id)
+          }
+
+          lessonProgress[lesson.id] = lessonEntry
+
+          return {
+            progress: {
+              ...currentProgress,
+              completedKnowledgePoints,
+              lessonProgress
+            }
+          }
+        })
+      },
+
       // 标记课程为已完成
       completeLesson: async (lessonId) => {
         // 先更新本地状态

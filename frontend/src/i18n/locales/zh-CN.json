@@ -326,9 +326,10 @@
     "knowledgePointCompleted": "知识点完成！",
     "lessonCompleted": "课程完成！",
     "nextKnowledgePoint": "下一个 →",
+    "nextLesson": "下一课 →",
     "prevKnowledgePoint": "← 上一个",
-    "keyboardHint": "💡 使用键盘快捷键：← → 切换卡片，ESC 返回课程列表",
-    "keyboardShortcuts": "💡 使用键盘快捷键：← → 切换卡片，ESC 返回课程列表",
+    "keyboardHint": "💡 使用键盘快捷键：Enter 继续，← → 切换卡片，ESC 返回课程列表",
+    "keyboardShortcuts": "💡 使用键盘快捷键：Enter 继续，← → 切换卡片，ESC 返回课程列表",
     "swipeHint": "💡 滑动或点击导航按钮切换知识点"
   },
   "pages": {

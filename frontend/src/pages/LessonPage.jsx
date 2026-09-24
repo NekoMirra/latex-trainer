@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useDocumentTitle, PAGE_TITLES } from '../hooks/useDocumentTitle'
@@ -31,6 +31,9 @@ const LessonPage = () => {
   // PracticeCard引用，用于自动聚焦
   const practiceCardRef = useRef(null)
 
+  // 记录已经套用「上次进度」的课程，避免语言切换时把用户当前所在卡片拽回去
+  const resumedLessonRef = useRef(null)
+
   // 设备类型检测
   const deviceType = useDeviceType()
 
@@ -47,6 +50,7 @@ const LessonPage = () => {
     setCurrentKnowledgePointIndex,
     completeKnowledgePoint,
     completeLesson,
+    syncPracticeCompletedCards,
     isLessonCompleted,
     isKnowledgePointCompleted,
     getLessonProgress,
@@ -78,6 +82,49 @@ const LessonPage = () => {
       setCurrentLesson(lessonId, isSameLessonRefresh) // 如果是同一课程刷新，保持知识点索引
     }
   }, [lessonId, lessons, setCurrentLesson, currentLesson])
+
+  // 用后端练习记录补齐本地完成态，并把打开课程后的落点定到上次的进度
+  useEffect(() => {
+    if (!currentLesson || isReviewMode) return
+
+    let cancelled = false
+    learningAPI.getPracticeProgress(currentLesson.id)
+      .then((progress) => {
+        if (cancelled) return
+
+        syncPracticeCompletedCards(currentLesson, progress)
+
+        if (resumedLessonRef.current === currentLesson.id) return
+        resumedLessonRef.current = currentLesson.id
+
+        // 没有任何作答记录时从第一张卡片开始，否则回到最近一次作答所在的那张卡片
+        const records = Object.entries(progress)
+          .filter(([, record]) => record?.last_attempt)
+          .sort(([, left], [, right]) => new Date(right.last_attempt) - new Date(left.last_attempt))
+
+        if (records.length === 0) return
+
+        const lastCardIndex = Number(records[0][0])
+        if (Number.isInteger(lastCardIndex) && lastCardIndex > 0) {
+          setCurrentKnowledgePointIndex(lastCardIndex)
+        }
+      })
+      .catch((syncError) => {
+        console.warn('同步练习题完成状态失败，本轮按未完成处理:', syncError.message)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentLesson, isReviewMode, syncPracticeCompletedCards, setCurrentKnowledgePointIndex])
+
+  // 下一章：按 sequence 排序后取当前课程的下一课
+  const nextLesson = useMemo(() => {
+    if (!currentLesson || !lessons?.length) return null
+    const ordered = [...lessons].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+    const index = ordered.findIndex((lesson) => lesson.id === currentLesson.id)
+    return index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null
+  }, [lessons, currentLesson])
 
   // 键盘导航支持
   useEffect(() => {
@@ -132,14 +179,33 @@ const LessonPage = () => {
           event.preventDefault()
           handleNextKnowledgePoint()
           break
-        case 'Enter':
-          // 知识点卡片上没有输入控件，回车直接进入下一个知识点
+        case 'Enter': {
+          // 输入控件与按钮/链接的回车各自有既定行为，不在此处处理
           if (isInInput || isOnControl) {
             return
           }
+
+          const currentKnowledgePoint = currentLesson.knowledgePoints[currentKnowledgePointIndex]
+          const isPracticeCard = Boolean(currentKnowledgePoint?.exercises?.length)
+          const isAnswered = !isPracticeCard || isKnowledgePointCompleted(currentKnowledgePoint.id)
+          // 未作答的练习题不能靠回车跳过，提交与推进由 PracticeCard 负责
+          if (!isAnswered) {
+            return
+          }
+
           event.preventDefault()
-          handleNextKnowledgePoint()
+
+          const isLastCard = currentKnowledgePointIndex === currentLesson.knowledgePoints.length - 1
+          if (isLastCard) {
+            // 最后一站：有下一章就继续学习下一章，已是最后一课则停在课程完成按钮上
+            if (nextLesson) {
+              navigate(`/app/lesson/${nextLesson.id}`)
+            }
+          } else {
+            handleNextKnowledgePoint()
+          }
           break
+        }
         case 'Escape':
           event.preventDefault()
           // 如果在输入框中，先失焦，否则返回课程列表
@@ -154,16 +220,22 @@ const LessonPage = () => {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [currentLesson, currentKnowledgePointIndex, isTransitioning, setCurrentKnowledgePointIndex, navigate])
+  }, [currentLesson, currentKnowledgePointIndex, isTransitioning, setCurrentKnowledgePointIndex, navigate, nextLesson, isKnowledgePointCompleted])
 
   const handleNextKnowledgePoint = () => {
-    if (currentLesson && currentKnowledgePointIndex < currentLesson.knowledgePoints.length - 1 && !isTransitioning) {
+    if (!currentLesson || isTransitioning) return
+
+    if (currentKnowledgePointIndex < currentLesson.knowledgePoints.length - 1) {
       setIsTransitioning(true)
       setTimeout(() => {
         setCurrentKnowledgePointIndex(currentKnowledgePointIndex + 1)
         setIsTransitioning(false)
       }, 150)
+      return
     }
+
+    // 末卡的推进落到下一章：练习题答完保持聚焦按回车走的正是这条路径
+    handleGoToNextLesson()
   }
 
   const handlePrevKnowledgePoint = () => {
@@ -173,6 +245,12 @@ const LessonPage = () => {
         setCurrentKnowledgePointIndex(currentKnowledgePointIndex - 1)
         setIsTransitioning(false)
       }, 150)
+    }
+  }
+
+  const handleGoToNextLesson = () => {
+    if (nextLesson) {
+      navigate(`/app/lesson/${nextLesson.id}`)
     }
   }
 
@@ -314,6 +392,13 @@ const LessonPage = () => {
 
   const handleLessonCompleteContinue = () => {
     setShowLessonCompleteModal(false)
+
+    if (nextLesson) {
+      navigate(`/app/lesson/${nextLesson.id}`)
+      return
+    }
+
+    // 已经是最后一课，回到学习面板
     navigate('/app/dashboard')
   }
 
@@ -485,23 +570,35 @@ const LessonPage = () => {
         </button>
 
         {isLastKnowledgePoint ? (
-          isReviewMode ? (
-            <button
-              onClick={() => navigate('/app/dashboard')}
-              disabled={isTransitioning}
-              className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              结束复习 ✓
-            </button>
-          ) : (
-            <button
-              onClick={handleCompleteLesson}
-              disabled={isTransitioning}
-              className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {t('lessonPage.lessonCompleted')} ✓
-            </button>
-          )
+          <div className="flex items-center gap-3">
+            {isReviewMode ? (
+              <button
+                onClick={() => navigate('/app/dashboard')}
+                disabled={isTransitioning}
+                className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                结束复习 ✓
+              </button>
+            ) : (
+              <button
+                onClick={handleCompleteLesson}
+                disabled={isTransitioning}
+                className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('lessonPage.lessonCompleted')} ✓
+              </button>
+            )}
+
+            {nextLesson && (
+              <button
+                onClick={handleGoToNextLesson}
+                disabled={isTransitioning}
+                className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('lessonPage.nextLesson')}
+              </button>
+            )}
+          </div>
         ) : (
           <button
             onClick={handleNextKnowledgePoint}

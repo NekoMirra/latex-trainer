@@ -342,9 +342,10 @@
     "knowledgePointCompleted": "Knowledge Point Completed!",
     "lessonCompleted": "Lesson Completed!",
     "nextKnowledgePoint": "Next →",
+    "nextLesson": "Next Lesson →",
     "prevKnowledgePoint": "← Previous",
-    "keyboardHint": "💡 Use keyboard shortcuts: ← → to switch cards, ESC to return to course list",
-    "keyboardShortcuts": "💡 Use keyboard shortcuts: ← → to switch cards, ESC to return to course list",
+    "keyboardHint": "💡 Use keyboard shortcuts: Enter to continue, ← → to switch cards, ESC to return to course list",
+    "keyboardShortcuts": "💡 Use keyboard shortcuts: Enter to continue, ← → to switch cards, ESC to return to course list",
     "swipeHint": "💡 Swipe or tap navigation buttons to switch knowledge points"
   },
   "practiceCard": {

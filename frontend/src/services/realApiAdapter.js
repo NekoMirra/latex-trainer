@@ -218,6 +218,17 @@ class RealApiAdapter {
     }
   }
 
+  // 课程内练习进度：返回 { cardIndex: { attempts, best_result, last_attempt } }
+  async getPracticeProgress(lessonId) {
+    try {
+      const response = await this.api.get(`/practice/progress/${lessonId}`)
+      return response.data
+    } catch (error) {
+      console.error('获取练习进度失败:', error)
+      throw new Error('获取练习进度失败')
+    }
+  }
+
   async getPracticeStats() {
     try {
       const response = await this.api.get('/practice/stats')

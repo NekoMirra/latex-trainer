@@ -205,6 +205,13 @@ export const learningAPI = {
     return { hint: '提示：检查你的语法和格式', hint_level: 0 }
   },
 
+  // 获取课程内练习进度（用于刷新后补齐完成态）
+  getPracticeProgress: async (lessonId) => {
+    const adapter = getApiAdapter()
+    const result = await adapter.getPracticeProgress(lessonId)
+    return result?.progress || {}
+  },
+
   // 获取课程完成状态
   getCompletionStatus: async (lessonId) => {
     const adapter = getApiAdapter()
